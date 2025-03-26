@@ -1,18 +1,28 @@
 // components/ComicCell.js
-import React, { useState, useRef } from 'react';
-import { StyleSheet, View, Text, PanResponder, Animated, TouchableOpacity, TextInput } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { StyleSheet, View, Text, PanResponder, Animated, TouchableOpacity, TextInput, Alert } from 'react-native';
 import ResizableView from './ResizableView';
+import SizeHandle from './SizeHandle';
+import Draggable from './Draggable';
 
-const ComicCell = ({ cellData, onCellPress, onTextFrameAdd, onTextFrameChange, onCellResize }) => {
+const ComicCell = ({ cellData, onCellPress, onTextFrameAdd, onTextFrameChange, onCellResize, onDeleteCell, onMoveCell }) => {
     const { id, width, height, textFrames } = cellData;
-    const [localWidth, setLocalWidth] = useState(width || 150);
-    const [localHeight, setLocalHeight] = useState(height || 150);
-    const [editingTextFrame, setEditingTextFrame] = useState(null); // Для редактирования текста
+    const [localWidth, setLocalWidth] = useState(width || 300);
+    const [localHeight, setLocalHeight] = useState(height || 300);
+    const [localTextFrames, setLocalTextFrames] = useState(textFrames || []);
+    const [isResizingCell, setIsResizingCell] = useState(false);
+    const [selectedTextFrame, setSelectedTextFrame] = useState(null);
+    const longPressTimeout = useRef(null);
+
+
+    useEffect(() => {
+        setLocalTextFrames(textFrames || []);
+    }, [textFrames]);
 
     const handleResize = (newWidth, newHeight) => {
         setLocalWidth(newWidth);
         setLocalHeight(newHeight);
-        onCellResize(id, newWidth, newHeight); // Сообщаем ComicScreen об изменении размера
+        onCellResize(id, newWidth, newHeight);
     };
 
     const handleTextFramePress = () => {
@@ -20,44 +30,123 @@ const ComicCell = ({ cellData, onCellPress, onTextFrameAdd, onTextFrameChange, o
     };
 
     const handleTextChange = (frameId, newText) => {
-        onTextFrameChange(id, frameId, newText); // Сообщаем ComicScreen об изменении текста
+        onTextFrameChange(id, frameId, newText);
+    };
+
+    const handleTextFrameMove = (frameId, dx, dy) => {
+        const frameIndex = localTextFrames.findIndex(frame => frame.id === frameId);
+        if (frameIndex !== -1) {
+            const updatedTextFrames = [...localTextFrames];
+            updatedTextFrames[frameIndex] = {
+                ...updatedTextFrames[frameIndex],
+                x: updatedTextFrames[frameIndex].x + dx,
+                y: updatedTextFrames[frameIndex].y + dy,
+            };
+            setLocalTextFrames(updatedTextFrames);
+            onTextFrameChange(id, frameId, updatedTextFrames[frameIndex].text, updatedTextFrames[frameIndex].width, updatedTextFrames[frameIndex].height, updatedTextFrames[frameIndex].x + dx, updatedTextFrames[frameIndex].y + dy);
+        }
+    };
+
+    const handleCellLongPress = () => {
+        Alert.alert(
+            "Действия с ячейкой",
+            "Выберите действие",
+            [
+                {
+                    text: "Удалить",
+                    onPress: () => onDeleteCell(id),
+                },
+                {
+                    text: "Отмена",
+                    style: "cancel",
+                },
+            ],
+            { cancelable: true }
+        );
+    };
+
+    const handleCellPressIn = () => {
+        longPressTimeout.current = setTimeout(() => {
+            handleCellLongPress();
+        }, 1000); // 1 секунда
+    };
+
+    const handleCellPressOut = () => {
+        clearTimeout(longPressTimeout.current);
+    };
+
+    const handleSizeChange = (deltaX, deltaY) => {
+        const newWidth = localWidth + deltaX;
+        const newHeight = localHeight + deltaY;
+        setLocalWidth(newWidth);
+        setLocalHeight(newHeight);
+        onCellResize(id, newWidth, newHeight);
     };
 
     return (
-        <TouchableOpacity onPress={() => onCellPress(id)} style={{ margin: 10 }}>
-            <ResizableView
-                width={localWidth}
-                height={localHeight}
-                onResize={handleResize}
-                style={{ backgroundColor: 'skyblue', borderWidth: 1, borderColor: 'gray', overflow: 'hidden' }}
+        <View style={{ margin: 10 }}>
+            <TouchableOpacity
+                style={{
+                    width: localWidth,
+                    height: localHeight,
+                    backgroundColor: 'skyblue',
+                    borderWidth: 1,
+                    borderColor: 'gray',
+                    overflow: 'hidden',
+                }}
+                onPressIn={handleCellPressIn}
+                onPressOut={handleCellPressOut}
+                onPress={() => {
+                    if (!isResizingCell) {
+                        onCellPress(id);
+                        setIsResizingCell(!isResizingCell);
+                    }
+                }}
             >
-                {textFrames && textFrames.map((frame) => (
-                  <ResizableView
-                    key={frame.id}
-                    width={frame.width}
-                    height={frame.height}
-                    onResize={(newWidth, newHeight) => {
-                        onTextFrameChange(id, frame.id, frame.text, newWidth, newHeight);  //Сообщаем об изменении размера текстовой рамки
-                    }}
-                    style={[
-                        styles.textFrame,
-                        { left: frame.x, top: frame.y, position: 'absolute', backgroundColor: 'white' }
-                    ]}
-                  >
-                    <TextInput
-                      style={{ flex: 1, textAlign: 'center', fontSize: 14 }} // добавьте стили для текста
-                      value={frame.text}
-                      onChangeText={(text) => handleTextChange(frame.id, text)}
-                      multiline={true}
-                    />
-                  </ResizableView>
+                {localTextFrames && localTextFrames.map((frame) => (
+                    <Draggable
+                        key={frame.id}
+                        onDragStart={() => setSelectedTextFrame(frame.id)}
+                        onDragEnd={() => setSelectedTextFrame(null)}
+                        onDrag={(dx, dy) => handleTextFrameMove(frame.id, dx, dy)}
+                    >
+                        <View
+                            style={[
+                                styles.textFrame,
+                                {
+                                    left: frame.x,
+                                    top: frame.y,
+                                    width: frame.width,
+                                    height: frame.height,
+                                    position: 'absolute',
+                                    backgroundColor: 'white',
+                                    borderColor: selectedTextFrame === frame.id ? 'blue' : 'black', // Выделение
+                                    borderWidth: 1,
+                                }
+                            ]}
+                        >
+                            <TextInput
+                                style={{ flex: 1, textAlign: 'center', fontSize: 14 }}
+                                value={frame.text}
+                                onChangeText={(text) => handleTextChange(frame.id, text)}
+                                multiline={true}
+                            />
+                        </View>
+                    </Draggable>
                 ))}
 
                 <TouchableOpacity style={styles.addTextFrameButton} onPress={handleTextFramePress}>
                     <Text>Add Text Frame</Text>
                 </TouchableOpacity>
-            </ResizableView>
-        </TouchableOpacity>
+
+                {isResizingCell && (
+                    <>
+                        <SizeHandle direction="x" onSizeChange={handleSizeChange} />
+                        <SizeHandle direction="y" onSizeChange={handleSizeChange} />
+                    </>
+                )}
+            </TouchableOpacity>
+        </View>
     );
 };
 
@@ -69,7 +158,6 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     textFrame: {
-        //position: 'absolute', // Убрал здесь, чтобы позиционирование шло через props
         borderWidth: 1,
         borderColor: 'black',
     },

@@ -20,26 +20,33 @@ const AsyncStorageHelper = {
             return null;
         }
     },
+    deleteComic: async (comicId) => {
+        try {
+            await AsyncStorage.removeItem(comicId);
+        } catch (e) {
+            console.error("Ошибка удаления комикса:", e);
+        }
+    },
 
     getAllComics: async () => {
         const keys = await AsyncStorage.getAllKeys();
         const comics = [];
         for (const key of keys) {
-          if (key !== COMICS_KEY) { // Исключаем ключ списка комиксов
-            const comicData = await AsyncStorage.getItem(key);
-            if (comicData) {
-              try {
-                const parsedComic = JSON.parse(comicData);
-                comics.push({
-                  id: key, // Сохраняем ID
-                  title: parsedComic.title,
-                  description: parsedComic.description,
-                });
-              } catch (error) {
-                console.error("Ошибка парсинга JSON при загрузке комикса:", error);
-              }
+            if (key !== COMICS_KEY) { // Исключаем ключ списка комиксов
+                const comicData = await AsyncStorage.getItem(key);
+                if (comicData) {
+                    try {
+                        const parsedComic = JSON.parse(comicData);
+                        comics.push({
+                            id: key, // Сохраняем ID
+                            title: parsedComic.title,
+                            description: parsedComic.description,
+                        });
+                    } catch (error) {
+                        console.error("Ошибка парсинга JSON при загрузке комикса:", error);
+                    }
+                }
             }
-          }
         }
         return comics;
     },
