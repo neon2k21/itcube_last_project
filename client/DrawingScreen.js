@@ -4,10 +4,8 @@ import { Canvas, Path, Skia } from '@shopify/react-native-skia';
 
 export default function DrawingScreen() {
   const [paths, setPaths] = useState([]);
-  const [currentPath, setCurrentPath] = useState(null);
+  const [currentPath, setCurrentPath] = useState([]);
   const [brushType, setBrushType] = useState('pencil'); // 'pencil', 'marker', 'pen'
-
-  const canvasRef = useRef(null);
 
   const handleTouchStart = (event) => {
     const { locationX, locationY } = event.nativeEvent;
@@ -20,8 +18,10 @@ export default function DrawingScreen() {
   };
 
   const handleTouchEnd = () => {
-    setPaths((prevPaths) => [...prevPaths, currentPath]);
-    setCurrentPath(null);
+    if (currentPath.length > 0) {
+      setPaths((prevPaths) => [...prevPaths, currentPath]);
+    }
+    setCurrentPath([]);
   };
 
   const changeBrush = (type) => {
@@ -32,7 +32,6 @@ export default function DrawingScreen() {
   return (
     <View style={styles.container}>
       <Canvas
-        ref={canvasRef}
         style={styles.canvas}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -46,7 +45,7 @@ export default function DrawingScreen() {
             stroke={brushType === 'pencil' ? 'black' : brushType === 'marker' ? 'blue' : 'red'}
           />
         ))}
-        {currentPath && (
+        {currentPath.length > 0 && (
           <Path
             path={Skia.Path.Make().addPoly(currentPath, false)}
             strokeWidth={brushType === 'pencil' ? 2 : brushType === 'marker' ? 5 : 3}
