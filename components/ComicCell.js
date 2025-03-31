@@ -49,8 +49,8 @@ const ComicCell = ({ cellData, onCellPress, onTextFrameAdd, onTextFrameChange, o
 
     const handleCellLongPress = () => {
         Alert.alert(
-            "Действия с ячейкой",
-            "Выберите действие",
+            "Ячейка",
+            "Удалить?",
             [
                 {
                     text: "Удалить",
