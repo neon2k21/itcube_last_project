@@ -1,23 +1,25 @@
-const fileInput = document.getElementById('file-input');
-const imageContainer = document.getElementById('image-container');
+const fs = require('fs');
+const readlineSync = require('readline-sync');
 
+function addImage() {
+    const imagePath = readlineSync.question('Введите путь к изображению: ');
 
-fileInput.addEventListener('change', (event) => {
-    const files = event.target.files;
+    if (fs.existsSync(imagePath)) {
+        console.log(`Изображение успешно загружено: ${imagePath}`);
+        
+        
+        const fileName = imagePath.split('/').pop(); 
+        const destinationPath = `./images/${fileName}`;
 
-    imageContainer.innerHTML = '';
-
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const reader = new FileReader();
-
-        reader.onload = function (e) {
-            const img = document.createElement('img'); 
-            img.src = e.target.result; 
-            imageContainer.appendChild(img); 
+        if (!fs.existsSync('./images')) {
+            fs.mkdirSync('./images');
         }
 
-        
-        reader.readAsDataURL(file);
+        fs.copyFileSync(imagePath, destinationPath);
+        console.log(`Изображение скопировано в: ${destinationPath}`);
+    } else {
+        console.log('Файл не найден, проверьте путь и попробуйте снова.');
     }
-});
+}
+
+addImage();
